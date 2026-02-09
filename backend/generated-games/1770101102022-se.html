@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SE - Real-Time Strategy</title>
+    <style>
+        /* General Reset & Body Styles */
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden; /* Prevents scrollbars */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e0e0e0;
+            background: linear-gradient(135deg, #1a1a1a, #0a0a0a);
+            display: grid;
+            grid-template-rows: 60px 1fr 80px; /* Top, Main, Bottom */
+            grid-template-columns: 1fr;
+        }
+
+        /* Top Bar */
+        header {
+            grid-row: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            background: linear-gradient(to right, #2c3e50, #1c2b36); /* Dark blue-grey gradient */
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+        }
+
+        .resources, .timer {
+            display: flex;
+            gap: 25px;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+
+        .resource-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 10px;
+            border-radius: 5px;
+            background-color: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: background-color 0.3s ease;
+        }
+        .resource-item:hover {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .resource-icon {
+            width: 20px;
+            height: 20px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+        #kyrium-icon { background-color: #6a05ad; border-radius: 3px; } /* Purple */
+        #nexarion-icon { background-color: #0077be; border-radius: 3px; } /* Blue */
+        #aethon-icon { background-color: #008f51; border-radius: 3px; } /* Green */
+
+        .timer {
+            background-color: rgba(0, 0, 0, 0.3);
+            padding: 5px 15px;
+            border-radius: 5px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Main Content Area */
+        main {
+            grid-row: 2;
+            display: flex;
+            gap: 10px;
+            padding: 10px;
+            box-sizing: border-box;
+            background: rgba(0, 0, 0, 0.1); /* Subtle background for main section */
+        }
+
+        .game-canvas-container {
+            flex: 1; /* Takes remaining space after build panel */
+            background-color: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+        }
+        #gameCanvas.grabbing {
+            cursor: grabbing;
+        }
+
+        .build-panel {
+            width: 30%; /* 30% of main area */
+            background: linear-gradient(to bottom, #252525, #181818);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+            overflow-y: auto;
+        }
+
+        .panel-title {
+            font-size: 1.4em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-align: center;
+            color: #8c8c8c;
+            letter-spacing: 1px;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.1);
+        }
+
+        .build-category {
+            margin-bottom: 25px;
+        }
+
+        .category-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #b0b0b0;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        .unit-list, .building-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+        }
+
+        .build-item {
+            background-color: #333;
+            border: 1px solid #555;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        .build-item:hover {
+            background-color: #444;
+            border-color: #777;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+        }
+        .build-item:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+        .build-item.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            filter: grayscale(100%);
+        }
+        .build-item.building {
+            cursor: wait;
+        }
+
+        .build-item-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #f0f0f0;
+        }
+        .build-item-cost {
+            font-size: 0.8em;
+            color: #c0c0c0;
+            margin-bottom: 5px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 5px;
+        }
+        .cost-item {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+        .cost-item .resource-icon {
+            width: 12px;
+            height: 12px;
+        }
+        .cost-value {
+            line-height: 1;
+        }
+
+        .build-progress-bar {
+            height: 5px;
+            background-color: #555;
+            margin-top: 8px;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .build-progress-bar div {
+            height: 100%;
+            width: 0%;
+            background-color: #28a745; /* Green */
+            transition: width 0.1s linear;
+        }
+        .build-item.building .build-progress-bar div {
+            animation: pulse-green 1s infinite alternate;
+        }
+
+        @keyframes pulse-green {
+            from { background-color: #28a745; }
+            to { background-color: #4CAF50; }
+        }
+
+        /* Build Queue */
+        .build-queue {
+            margin-top: 25px;
+            border-top: 1px solid #444;
+            padding-top: 15px;
+        }
+        .queue-item {
+            display: flex;
+            align-items: center;
+            background-color: #333;
+            padding: 8px;
+            border-radius: 5px;
+            margin-bottom: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+            position: relative;
+        }
+        .queue-item-name {
+            font-weight: bold;
+            flex-grow: 1;
+            margin-left: 10px;
+        }
+        .queue-item-time {
+            font-size: 0.9em;
+            color: #b0b0b0;
+        }
+        .queue-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            background-color: #28a745;
+            width: 0%;
+            border-bottom-left-radius: 5px;
+            border-bottom-right-radius: 5px;
+            transition: width 0.1s linear;
+        }
+
+        /* Bottom Bar */
+        footer {
+            grid-row: 3;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(to left, #2c3e50, #1c2b36); /* Dark blue-grey gradient */
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.5);
+            padding: 0 20px;
+            z-index: 10;
+        }
+
+        .action-button {
+            background-color: #007bff; /* Blue */
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+            margin: 0 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+        .action-button:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+        }
+        .action-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .action-button.disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        /* Game Over Overlay */
+        #gameOverOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 3em;
+            font-weight: bold;
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease;
+        }
+        #gameOverOverlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        #gameOverOverlay h2 {
+            margin-bottom: 20px;
+            color: #e0e0e0;
+        }
+        #gameOverOverlay button {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        #gameOverOverlay button:hover {
+            background-color: #218838;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            html, body {
+                grid-template-rows: 60px 1fr auto 80px; /* Top, Canvas, Build, Actions */
+                grid-template-columns: 1fr;
+            }
+            main {
+                flex-direction: column; /* Stack canvas and build panel */
+                overflow-y: auto; /* Allow scrolling if content is too tall */
+                gap: 0; /* Remove gap when stacked */
+                padding: 5px;
+                grid-row: 2 / span 2; /* Main and build panel together */
+            }
+            .game-canvas-container {
+                width: 100%;
+                height: 50vh; /* Give canvas more height by default */
+                margin-bottom: 10px;
+            }
+            .build-panel {
+                width: 100%;
+                height: auto; /* Allow build panel to size dynamically */
+                min-height: 250px; /* Minimum height for scrollability */
+                padding: 10px;
+            }
+            footer {
+                padding: 5px;
+                height: auto; /* Allow footer to grow */
+                flex-wrap: wrap; /* Wrap buttons if too many */
+                grid-row: 4;
+            }
+            .action-button {
+                margin: 5px;
+                padding: 10px 15px;
+                font-size: 0.9em;
+            }
+            .resources, .timer {
+                font-size: 0.9em;
+                gap: 15px;
+            }
+            header {
+                padding: 0 10px;
+            }
+            .build-item-name {
+                font-size: 0.9em;
+            }
+            .build-item-cost {
+                font-size: 0.7em;
+            }
+            .unit-list, .building-list {
+                grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="resources">
+            <div class="resource-item">
+                <div id="kyrium-icon" class="resource-icon"></div>
+                <span>Kyrium: <span id="kyriumAmount">500</span></span>
+            </div>
+            <div class="resource-item">
+                <div id="nexarion-icon" class="resource-icon"></div>
+                <span>Nexarion: <span id="nexarionAmount">200</span></span>
+            </div>
+            <div class="resource-item">
+                <div id="aethon-icon" class="resource-icon"></div>
+                <span>Aethon: <span id="aethonAmount">100</span></span>
+            </div>
+        </div>
+        <div class="timer">
+            <span>Time: <span id="gameTimer">00:00</span></span>
+        </div>
+    </header>
+
+    <main>
+        <div class="game-canvas-container">
+            <canvas id="gameCanvas"></canvas>
+        </div>
+
+        <aside class="build-panel">
+            <div class="panel-title">F.A.C.T.I.O.N. S.Y.S.T.E.M.S.</div>
+
+            <div class="build-category">
+                <div class="category-title">Unit Production</div>
+                <div class="unit-list" id="unitBuildList">
+                    <!-- Unit build items will be dynamically inserted here -->
+                </div>
+            </div>
+
+            <div class="build-category build-queue">
+                <div class="category-title">Build Queue</div>
+                <div id="buildQueueList">
+                    <!-- Build queue items will be dynamically inserted here -->
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <footer>
+        <button id="moveButton" class="action-button">Move</button>
+        <button id="attackButton" class="action-button">Attack</button>
+        <button id="holdPositionButton" class="action-button">Hold Position</button>
+        <button id="stopButton" class="action-button">Stop</button>
+    </footer>
+
+    <div id="gameOverOverlay">
+        <h2 id="gameOverMessage">GAME OVER</h2>
+        <button id="restartButton">Restart Game</button>
+    </div>
+
+    <script>
+        // --- Game Configuration ---
+        const CONFIG = {
+            TILE_SIZE: 40,
+            GRID_WIDTH: 30, // Number of tiles
+            GRID_HEIGHT: 20, // Number of tiles
+            INITIAL_RESOURCES: {
+                Kyrium: 500,
+                Nexarion: 200,
+                Aethon: 100
+            },
+            RESOURCE_GENERATION_INTERVAL: 1000, // ms
+            RESOURCE_GENERATION_AMOUNT: { Kyrium: 5, Nexarion: 2, Aethon: 1 },
+            PLAYER_FACTION: "The Kyrexi Brotherhood",
+            ENEMY_FACTION: "The Aetherscale Enclave",
+            GAME_SPEED: 1000 / 60, // ~60 FPS update interval
+        };
+
+        const UNIT_TYPES = {
+            'Sonic Sentinel': {
+                faction: "The Kyrexi Brotherhood",
+                cost: { Kyrium: 50, Nexarion: 10, Aethon: 0 },
+                hp: 100, attack: 15, defense: 5, speed: 2, range: 2, buildTime: 5, icon: '#6a05ad', // Purple
+                type: 'unit'
+            },
+            'Resonance Ranger': {
+                faction: "The Kyrexi Brotherhood",
+                cost: { Kyrium: 70, Nexarion: 15, Aethon: 0 },
+                hp: 80, attack: 20, defense: 3, speed: 3, range: 3, buildTime: 7, icon: '#6a05ad', // Purple
+                type: 'unit'
+            },
+            'Crescendo Crusher': {
+                faction: "The Kyrexi Brotherhood",
+                cost: { Kyrium: 150, Nexarion: 50, Aethon: 10 },
+                hp: 200, attack: 30, defense: 10, speed: 1.5, range: 1, buildTime: 12, icon: '#6a05ad', // Purple
+                type: 'unit'
+            },
+            'Golem Guardian': {
+                faction: "The Aetherscale Enclave",
+                cost: { Kyrium: 0, Nexarion: 0, Aethon: 0 },
+                hp: 250, attack: 20, defense: 15, speed: 1, range: 1, buildTime: 0, icon: '#0077be', // Blue
+                type: 'unit'
+            },
+            'Aether Archer': {
+                faction: "The Aetherscale Enclave",
+                cost: { Kyrium: 0, Nexarion: 0, Aethon: 0 },
+                hp: 90, attack: 25, defense: 5, speed: 2.5, range: 4, buildTime: 0, icon: '#0077be', // Blue
+                type: 'unit'
+            },
+            'Elemental Embodiment': {
+                faction: "The Aetherscale Enclave",
+                cost: { Kyrium: 0, Nexarion: 0, Aethon: 0 },
+                hp: 180, attack: 35, defense: 8, speed: 2, range: 2, buildTime: 0, icon: '#0077be', // Blue
+                type: 'unit'
+            },
+            'Nexus HQ': {
+                faction: "The Kyrexi Brotherhood",
+                cost: { Kyrium: 0, Nexarion: 0, Aethon: 0 },
+                hp: 1000, attack: 0, defense: 20, speed: 0, range: 0, buildTime: 0, icon: '#6a05ad', // Purple
+                type: 'building', size: 2 // occupies 2x2 grid tiles
+            },
+            'Enemy Hive': {
+                faction: "The Aetherscale Enclave",
+                cost: { Kyrium: 0, Nexarion: 0, Aethon: 0 },
+                hp: 1500, attack: 0, defense: 20, speed: 0, range: 0, buildTime: 0, icon: '#0077be', // Blue
+                type: 'building', size: 2
+            }
+        };
+
+        // --- Game State Variables ---
+        let game = {
+            resources: { ...CONFIG.INITIAL_RESOURCES },
+            timer: 0, // seconds
+            units: [],
+            selectedUnits: [],
+            buildQueue: [],
+            gameRunning: false,
+            lastUpdateTime: 0,
+            canvasOffset: { x: 0, y: 0 }, // For camera panning
+            isPanning: false,
+            panStart: { x: 0, y: 0 },
+            mouse: { x: 0, y: 0 }
+        };
+        let unitIdCounter = 0;
+        let mainNexus, enemyHive;
+
+        // --- DOM Elements ---
+        const kyriumAmountSpan = document.getElementById('kyriumAmount');
+        const nexarionAmountSpan = document.getElementById('nexarionAmount');
+        const aethonAmountSpan = document.getElementById('aethonAmount');
+        const gameTimerSpan = document.getElementById('gameTimer');
+        const gameCanvas = document.getElementById('gameCanvas');
+        const ctx = gameCanvas.getContext('2d');
+        const unitBuildList = document.getElementById('unitBuildList');
+        const buildQueueList = document.getElementById('buildQueueList');
+        const gameOverOverlay = document.getElementById('gameOverOverlay');
+        const gameOverMessage = document.getElementById('gameOverMessage');
+        const restartButton = document.getElementById('restartButton');
+        const moveButton = document.getElementById('moveButton');
+        const attackButton = document.getElementById('attackButton');
+        const holdPositionButton = document.getElementById('holdPositionButton');
+        const stopButton = document.getElementById('stopButton');
+
+        // --- Web Audio API for Sound Effects ---
+        let audioContext;
+        function initAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type = 'click', frequency = 440, duration = 0.1, volume = 0.5) {
+            initAudioContext();
+            if (!audioContext) return;
+
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            oscillator.type = 'sine'; // or 'square', 'sawtooth', 'triangle'
+            
+            let f = frequency;
+            if (type === 'select') f = 700;
+            if (type === 'deselect') f = 300;
+            if (type === 'commandMove') f = 550;
+            if (type === 'commandAttack') f = 450;
+            if (type === 'buttonClick') f = 800;
+            if (type === 'buildStart') f = 500;
+            if (type === 'buildComplete') f = 600;
+            if (type === 'error') f = 100;
+            if (type === 'attack') f = 200 + Math.random() * 100;
+            if (type === 'playerDeath') f = 100;
+            if (type === 'enemyDeath') f = 150;
+            if (type === 'enemySpawn') f = 250;
+            if (type === 'win') f = [523, 659, 783, 1046]; // C5, E5, G5, C6 (chord)
+            if (type === 'lose') f = [261, 220, 196]; // C4, A3, G3 (descending)
+
+            if (Array.isArray(f)) {
+                f.forEach((freq, index) => {
+                    const osc = audioContext.createOscillator();
+                    const gn = audioContext.createGain();
+                    osc.connect(gn);
+                    gn.connect(audioContext.destination);
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, audioContext.currentTime + index * 0.05);
+                    gn.gain.setValueAtTime(volume * 0.5, audioContext.currentTime + index * 0.05);
+                    gn.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration + index * 0.05);
+                    osc.start(audioContext.currentTime + index * 0.05);
+                    osc.stop(audioContext.currentTime + duration + index * 0.05);
+                });
+            } else {
+                oscillator.frequency.setValueAtTime(f, audioContext.currentTime);
+                gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration); // Fade out
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + duration);
+            }
+        }
+
+        // --- Helper Functions ---
+        function updateResourcesDisplay() {
+            kyriumAmountSpan.textContent = game.resources.Kyrium;
+            nexarionAmountSpan.textContent = game.resources.Nexarion;
+            aethonAmountSpan.textContent = game.resources.Aethon;
+            updateBuildButtons();
+        }
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+        }
+
+        function addUnit(unitType, faction, x, y) {
+            const unitDef = UNIT_TYPES[unitType];
+            const newUnit = {
+                id: ++unitIdCounter,
+                type: unitType,
+                faction: faction,
+                x: x,
+                y: y,
+                hp: unitDef.hp,
+                maxHp: unitDef.hp,
+                attack: unitDef.attack,
+                defense: unitDef.defense,
+                speed: unitDef.speed,
+                range: unitDef.range,
+                icon: unitDef.icon,
+                state: 'idle', // idle, moving, attacking
+                target: null, // target unit/building ID
+                targetPos: null, // target x, y for movement
+                isStructure: unitDef.type === 'building',
+                size: unitDef.size || 1, // for buildings, how many tiles it occupies (e.g., 2x2)
+                isSelected: false,
+                lastAttackTime: 0
+            };
+            game.units.push(newUnit);
+            return newUnit;
+        }
+
+        function getUnitById(id) {
+            return game.units.find(u => u.id === id);
+        }
+
+        function distance(unit1, unit2) {
+            return Math.sqrt(Math.pow(unit1.x - unit2.x, 2) + Math.pow(unit1.y - unit2.y, 2));
+        }
+
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(value, max));
+        }
+
+        // --- Game Setup & Initialization ---
+        function initGame() {
+            game.resources = { ...CONFIG.INITIAL_RESOURCES };
+            game.timer = 0;
+            game.units = [];
+            game.selectedUnits = [];
+            game.buildQueue = [];
+            game.gameRunning = true;
+            game.lastUpdateTime = performance.now();
+            game.canvasOffset = { x: 0, y: 0 };
+            unitIdCounter = 0;
+
+            // Resize canvas initially and on window resize
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            // Place initial units/buildings
+            mainNexus = addUnit('Nexus HQ', CONFIG.PLAYER_FACTION, 2, 2);
+            enemyHive = addUnit('Enemy Hive', CONFIG.ENEMY_FACTION, CONFIG.GRID_WIDTH - 4, CONFIG.GRID_HEIGHT - 4); // Adjusted for 2x2 size
+
+            // Spawn some initial enemy units
+            for (let i = 0; i < 3; i++) {
+                addUnit('Golem Guardian', CONFIG.ENEMY_FACTION, enemyHive.x - 2 + i, enemyHive.y - 1);
+                addUnit('Aether Archer', CONFIG.ENEMY_FACTION, enemyHive.x - 2 + i, enemyHive.y);
+            }
+
+            // Populate build panel
+            populateBuildPanel();
+            updateResourcesDisplay();
+            updateBuildQueueDisplay();
+
+            // Start game loop
+            requestAnimationFrame(gameLoop);
+            // Start resource generation
+            setInterval(generateResources, CONFIG.RESOURCE_GENERATION_INTERVAL);
+            // Start AI updates
+            setInterval(updateAI, 2000); // AI thinks every 2 seconds
+        }
+
+        function resizeCanvas() {
+            gameCanvas.width = gameCanvas.parentElement.clientWidth;
+            gameCanvas.height = gameCanvas.parentElement.clientHeight;
+        }
+
+        // --- Canvas Rendering ---
+        function drawGrid() {
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 0.5;
+
+            const gridWidthPx = CONFIG.GRID_WIDTH * CONFIG.TILE_SIZE;
+            const gridHeightPx = CONFIG.GRID_HEIGHT * CONFIG.TILE_SIZE;
+
+            // Draw vertical lines
+            for (let x = 0; x <= gridWidthPx; x += CONFIG.TILE_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(x + game.canvasOffset.x, game.canvasOffset.y);
+                ctx.lineTo(x + game.canvasOffset.x, gridHeightPx + game.canvasOffset.y);
+                ctx.stroke();
+            }
+
+            // Draw horizontal lines
+            for (let y = 0; y <= gridHeightPx; y += CONFIG.TILE_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(game.canvasOffset.x, y + game.canvasOffset.y);
+                ctx.lineTo(gridWidthPx + game.canvasOffset.x, y + game.canvasOffset.y);
+                ctx.stroke();
+            }
+        }
+
+        function drawUnit(unit) {
+            const xPx = unit.x * CONFIG.TILE_SIZE + game.canvasOffset.x;
+            const yPx = unit.y * CONFIG.TILE_SIZE + game.canvasOffset.y;
+            const sizePx = CONFIG.TILE_SIZE * unit.size;
+
+            ctx.save();
+            ctx.translate(xPx, yPx);
+
+            // Draw unit body
+            ctx.fillStyle = unit.icon;
+            ctx.fillRect(0, 0, sizePx, sizePx);
+
+            // Draw selection box
+            if (unit.isSelected) {
+                ctx.strokeStyle = '#00FFFF'; // Cyan
+                ctx.lineWidth = 2;
+                ctx.strokeRect(0, 0, sizePx, sizePx);
+            }
+
+            // Draw health bar
+            const healthBarWidth = sizePx;
+            const healthBarHeight = 5;
+            const healthBarYOffset = -healthBarHeight - 2; // Above the unit
+
+            ctx.fillStyle = '#555'; // Background for health bar
+            ctx.fillRect(0, healthBarYOffset, healthBarWidth, healthBarHeight);
+
+            const currentHealthWidth = (unit.hp / unit.maxHp) * healthBarWidth;
+            ctx.fillStyle = unit.hp > unit.maxHp * 0.5 ? '#28a745' : (unit.hp > unit.maxHp * 0.2 ? '#ffc107' : '#dc3545'); // Green, Yellow, Red
+            ctx.fillRect(0, healthBarYOffset, currentHealthWidth, healthBarHeight);
+
+            // Draw unit type label (for buildings, or debugging)
+            if (unit.isStructure || unit.isSelected) {
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 10px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(unit.type, sizePx / 2, healthBarYOffset - 5);
+            }
+
+            ctx.restore();
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+            ctx.fillStyle = '#1e1e1e';
+            ctx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+
+            drawGrid();
+
+            game.units.forEach(unit => drawUnit(unit));
+
+            // Draw temporary target indicator for selected units
+            if (game.selectedUnits.length > 0 && game.selectedUnits[0].targetPos) {
+                const targetPxX = game.selectedUnits[0].targetPos.x * CONFIG.TILE_SIZE + game.canvasOffset.x;
+                const targetPxY = game.selectedUnits[0].targetPos.y * CONFIG.TILE_SIZE + game.canvasOffset.y;
+                ctx.strokeStyle = '#00FF00';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(targetPxX + CONFIG.TILE_SIZE / 2, targetPxY + CONFIG.TILE_SIZE / 2, CONFIG.TILE_SIZE / 2, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(targetPxX, targetPxY);
+                ctx.lineTo(targetPxX + CONFIG.TILE_SIZE, targetPxY + CONFIG.TILE_SIZE);
+                ctx.moveTo(targetPxX + CONFIG.TILE_SIZE, targetPxY);
+                ctx.lineTo(targetPxX, targetPxY + CONFIG.TILE_SIZE);
+                ctx.stroke();
+            }
+        }
+
+        // --- Game Logic Updates ---
+        function generateResources() {
+            if (!game.gameRunning) return;
+            game.resources.Kyrium += CONFIG.RESOURCE_GENERATION_AMOUNT.Kyrium;
+            game.resources.Nexarion += CONFIG.RESOURCE_GENERATION_AMOUNT.Nexarion;
+            game.resources.Aethon += CONFIG.RESOURCE_GENERATION_AMOUNT.Aethon;
+            updateResourcesDisplay();
+        }
+
+        function updateGame(deltaTime) {
+            game.timer += deltaTime / 1000;
+            gameTimerSpan.textContent = formatTime(Math.floor(game.timer));
+
+            // Update build queue
+            if (game.buildQueue.length > 0) {
+                const currentBuild = game.buildQueue[0];
+                currentBuild.progress += deltaTime / 1000;
+                if (currentBuild.progress >= currentBuild.buildTime) {
+                    // Unit finished building
+                    addUnit(currentBuild.unitType, CONFIG.PLAYER_FACTION, mainNexus.x + 2 + Math.random(), mainNexus.y + 2 + Math.random()); // Spawn near Nexus
+                    game.buildQueue.shift(); // Remove from queue
+                    playSound('buildComplete', 600, 0.2);
+                }
+                updateBuildQueueDisplay();
+            }
+
+            // Update units
+            game.units.forEach(unit => {
+                if (unit.isStructure) return; // Structures don't move or attack on their own
+
+                // Movement
+                if (unit.state === 'moving' && unit.targetPos) {
+                    const targetX = unit.targetPos.x;
+                    const targetY = unit.targetPos.y;
+
+                    const dx = targetX - unit.x;
+                    const dy = targetY - unit.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < 0.1) { // Close enough to target
+                        unit.x = targetX;
+                        unit.y = targetY;
+                        unit.state = 'idle';
+                        unit.targetPos = null;
+                    } else {
+                        const moveSpeed = unit.speed * deltaTime / 1000; // units per second
+                        unit.x += (dx / dist) * moveSpeed;
+                        unit.y += (dy / dist) * moveSpeed;
+                    }
+                }
+
+                // Combat
+                if (unit.state === 'attacking' && unit.target) {
+                    const targetUnit = getUnitById(unit.target);
+                    if (!targetUnit || targetUnit.hp <= 0 || targetUnit.faction === unit.faction) { // Target invalid or dead or friendly
+                        unit.state = 'idle';
+                        unit.target = null;
+                        return;
+                    }
+
+                    const distToTarget = distance(unit, targetUnit);
+                    if (distToTarget <= unit.range) {
+                        if (performance.now() - unit.lastAttackTime > 1000) { // Attack every 1 second
+                            const damage = Math.max(0, unit.attack - targetUnit.defense);
+                            targetUnit.hp -= damage;
+                            unit.lastAttackTime = performance.now();
+                            playSound('attack', 200 + Math.random() * 100, 0.05);
+
+                            if (targetUnit.hp <= 0) {
+                                game.units = game.units.filter(u => u.id !== targetUnit.id);
+                                if (targetUnit.faction === CONFIG.ENEMY_FACTION) {
+                                    playSound('enemyDeath', 150, 0.3);
+                                } else {
+                                    playSound('playerDeath', 100, 0.3);
+                                }
+                                unit.state = 'idle';
+                                unit.target = null;
+                            }
+                        }
+                    } else {
+                        // Move closer to target
+                        unit.state = 'moving';
+                        unit.targetPos = { x: targetUnit.x, y: targetUnit.y };
+                    }
+                }
+            });
+
+            // Check win/loss conditions
+            checkGameEndConditions();
+        }
+
+        function gameLoop(currentTime) {
+            if (!game.gameRunning) return;
+
+            const deltaTime = currentTime - game.lastUpdateTime;
+            game.lastUpdateTime = currentTime;
+
+            updateGame(deltaTime);
+            render();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- Build Panel Logic ---
+        function populateBuildPanel() {
+            for (const unitName in UNIT_TYPES) {
+                const unitDef = UNIT_TYPES[unitName];
+                if (unitDef.faction === CONFIG.PLAYER_FACTION && unitDef.type === 'unit') {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'build-item';
+                    itemDiv.dataset.unitType = unitName;
+
+                    let costsHtml = '';
+                    for (const resource in unitDef.cost) {
+                        if (unitDef.cost[resource] > 0) {
+                            costsHtml += `
+                                <div class="cost-item">
+                                    <div class="resource-icon" style="background-color: ${resource === 'Kyrium' ? '#6a05ad' : (resource === 'Nexarion' ? '#0077be' : '#008f51')}"></div>
+                                    <span class="cost-value">${unitDef.cost[resource]}</span>
+                                </div>`;
+                        }
+                    }
+
+                    itemDiv.innerHTML = `
+                        <div class="build-item-name">${unitName}</div>
+                        <div class="build-item-cost">${costsHtml}</div>
+                        <div class="build-progress-bar"><div style="width:0%;"></div></div>
+                    `;
+                    itemDiv.addEventListener('click', () => tryBuildUnit(unitName));
+                    unitBuildList.appendChild(itemDiv);
+                }
+            }
+        }
+
+        function updateBuildButtons() {
+            const buildItems = unitBuildList.querySelectorAll('.build-item');
+            buildItems.forEach(item => {
+                const unitType = item.dataset.unitType;
+                const unitDef = UNIT_TYPES[unitType];
+                let canAfford = true;
+                for (const resource in unitDef.cost) {
+                    if (game.resources[resource] < unitDef.cost[resource]) {
+                        canAfford = false;
+                        break;
+                    }
+                }
+                item.classList.toggle('disabled', !canAfford);
+            });
+        }
+
+        function tryBuildUnit(unitType) {
+            if (!game.gameRunning) return;
+
+            const unitDef = UNIT_TYPES[unitType];
+            let canAfford = true;
+            for (const resource in unitDef.cost) {
+                if (game.resources[resource] < unitDef.cost[resource]) {
+                    canAfford = false;
+                    break;
+                }
+            }
+
+            if (canAfford) {
+                for (const resource in unitDef.cost) {
+                    game.resources[resource] -= unitDef.cost[resource];
+                }
+                game.buildQueue.push({
+                    unitType: unitType,
+                    buildTime: unitDef.buildTime,
+                    progress: 0,
+                    id: ++unitIdCounter
+                });
+                updateResourcesDisplay();
+                updateBuildQueueDisplay();
+                playSound('buildStart', 500, 0.1);
+            } else {
+                playSound('error', 100, 0.1, 0.7);
+                console.log(`Cannot afford ${unitType}`);
+            }
+        }
+
+        function updateBuildQueueDisplay() {
+            buildQueueList.innerHTML = '';
+
+            if (game.buildQueue.length === 0) {
+                buildQueueList.innerHTML = `<div class="queue-item"><span class="queue-item-name">Queue Empty</span></div>`;
+                return;
+            }
+
+            game.buildQueue.forEach(queueItem => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'queue-item';
+                itemDiv.dataset.queueId = queueItem.id;
+
+                const progressPercent = (queueItem.progress / queueItem.buildTime) * 100;
+
+                itemDiv.innerHTML = `
+                    <span class="queue-item-name">${queueItem.unitType}</span>
+                    <span class="queue-item-time">${Math.ceil(queueItem.buildTime - queueItem.progress)}s</span>
+                    <div class="queue-progress" style="width:${progressPercent}%;"></div>
+                `;
+                buildQueueList.appendChild(itemDiv);
+            });
+        }
+
+
+        // --- Input Handling (Canvas) ---
+        gameCanvas.addEventListener('mousedown', (e) => {
+            initAudioContext();
+            if (e.button === 0) { // Left click for selection
+                const clickX = (e.clientX - gameCanvas.getBoundingClientRect().left - game.canvasOffset.x);
+                const clickY = (e.clientY - gameCanvas.getBoundingClientRect().top - game.canvasOffset.y);
+
+                // Check for unit selection
+                let clickedUnit = null;
+                for (let i = game.units.length - 1; i >= 0; i--) {
+                    const unit = game.units[i];
+                    if (unit.faction === CONFIG.PLAYER_FACTION) {
+                        const unitPxX = unit.x * CONFIG.TILE_SIZE;
+                        const unitPxY = unit.y * CONFIG.TILE_SIZE;
+                        const unitPxSize = CONFIG.TILE_SIZE * unit.size;
+
+                        if (clickX >= unitPxX && clickX < unitPxX + unitPxSize &&
+                            clickY >= unitPxY && clickY < unitPxY + unitPxSize) {
+                            clickedUnit = unit;
+                            break;
+                        }
+                    }
+                }
+
+                game.selectedUnits.forEach(u => u.isSelected = false);
+
+                if (clickedUnit) {
+                    game.selectedUnits = [clickedUnit];
+                    clickedUnit.isSelected = true;
+                    playSound('select', 700, 0.05);
+                } else {
+                    game.selectedUnits = [];
+                    playSound('deselect', 300, 0.05);
+                }
+            } else if (e.button === 2) { // Right click for commands
+                if (game.selectedUnits.length > 0) {
+                    const targetX = Math.floor((e.clientX - gameCanvas.getBoundingClientRect().left - game.canvasOffset.x) / CONFIG.TILE_SIZE);
+                    const targetY = Math.floor((e.clientY - gameCanvas.getBoundingClientRect().top - game.canvasOffset.y) / CONFIG.TILE_SIZE);
+
+                    let targetUnit = null;
+                    for (let i = game.units.length - 1; i >= 0; i--) {
+                        const unit = game.units[i];
+                        if (unit.faction !== CONFIG.PLAYER_FACTION) {
+                             const unitPxX = unit.x * CONFIG.TILE_SIZE;
+                             const unitPxY = unit.y * CONFIG.TILE_SIZE;
+                             const unitPxSize = CONFIG.TILE_SIZE * unit.size;
+
+                             if (targetX * CONFIG.TILE_SIZE >= unitPxX && targetX * CONFIG.TILE_SIZE < unitPxX + unitPxSize &&
+                                 targetY * CONFIG.TILE_SIZE >= unitPxY && targetY * CONFIG.TILE_SIZE < unitPxY + unitPxSize) {
+                                 targetUnit = unit;
+                                 break;
+                             }
+                        }
+                    }
+
+                    game.selectedUnits.forEach(unit => {
+                        if (targetUnit) {
+                            unit.state = 'attacking';
+                            unit.target = targetUnit.id;
+                            unit.targetPos = null;
+                            playSound('commandAttack', 450, 0.05);
+                        } else {
+                            unit.state = 'moving';
+                            unit.targetPos = { x: targetX, y: targetY };
+                            unit.target = null;
+                            playSound('commandMove', 550, 0.05);
+                        }
+                    });
+                } else {
+                    playSound('error', 100, 0.1, 0.7);
+                }
+            } else if (e.button === 1) { // Middle mouse button for panning
+                game.isPanning = true;
+                game.panStart = { x: e.clientX - game.canvasOffset.x, y: e.clientY - game.canvasOffset.y };
+                gameCanvas.classList.add('grabbing');
+            }
+        });
+
+        gameCanvas.addEventListener('mousemove', (e) => {
+            game.mouse.x = e.clientX - gameCanvas.getBoundingClientRect().left;
+            game.mouse.y = e.clientY - gameCanvas.getBoundingClientRect().top;
+
+            if (game.isPanning) {
+                game.canvasOffset.x = e.clientX - game.panStart.x;
+                game.canvasOffset.y = e.clientY - game.panStart.y;
+
+                const gridWidthPx = CONFIG.GRID_WIDTH * CONFIG.TILE_SIZE;
+                const gridHeightPx = CONFIG.GRID_HEIGHT * CONFIG.TILE_SIZE;
+
+                game.canvasOffset.x = clamp(game.canvasOffset.x, gameCanvas.width - gridWidthPx, 0);
+                game.canvasOffset.y = clamp(game.canvasOffset.y, gameCanvas.height - gridHeightPx, 0);
+            }
+        });
+
+        gameCanvas.addEventListener('mouseup', (e) => {
+            if (e.button === 1) {
+                game.isPanning = false;
+                gameCanvas.classList.remove('grabbing');
+            }
+        });
+
+        gameCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+
+        // --- Action Bar Buttons ---
+        holdPositionButton.addEventListener('click', () => {
+            game.selectedUnits.forEach(unit => {
+                unit.state = 'idle';
+                unit.target = null;
+                unit.targetPos = null;
+            });
+            if (game.selectedUnits.length > 0) playSound('buttonClick', 800, 0.05);
+        });
+
+        stopButton.addEventListener('click', () => {
+            game.selectedUnits.forEach(unit => {
+                unit.state = 'idle';
+                unit.target = null;
+                unit.targetPos = null;
+            });
+            if (game.selectedUnits.length > 0) playSound('buttonClick', 800, 0.05);
+        });
+
+
+        // --- AI Logic ---
+        function updateAI() {
+            if (!game.gameRunning) return;
+
+            const enemyUnits = game.units.filter(u => u.faction === CONFIG.ENEMY_FACTION && !u.isStructure);
+            const playerUnits = game.units.filter(u => u.faction === CONFIG.PLAYER_FACTION);
+
+            enemyUnits.forEach(enemyUnit => {
+                // Simplified AI: if idle, find a target; otherwise continue current task
+                if (enemyUnit.state === 'idle' || (enemyUnit.state === 'moving' && !enemyUnit.targetPos)) {
+                    let closestTarget = null;
+                    let minDist = Infinity;
+
+                    playerUnits.forEach(playerUnit => {
+                        const d = distance(enemyUnit, playerUnit);
+                        if (d < minDist) {
+                            minDist = d;
+                            closestTarget = playerUnit;
+                        }
+                    });
+
+                    if (closestTarget) {
+                        enemyUnit.state = 'attacking';
+                        enemyUnit.target = closestTarget.id;
+                        enemyUnit.targetPos = { x: closestTarget.x, y: closestTarget.y };
+                    } else {
+                        // If no player units, patrol near their hive
+                        enemyUnit.state = 'moving';
+                        enemyUnit.targetPos = {
+                            x: enemyHive.x + Math.floor(Math.random() * enemyHive.size),
+                            y: enemyHive.y + Math.floor(Math.random() * enemyHive.size)
+                        };
+                    }
+                }
+            });
+
+            // Enemy unit spawning
+            if (Math.random() < 0.2) {
+                const spawnUnitType = Math.random() < 0.5 ? 'Golem Guardian' : 'Aether Archer';
+                const spawnX = enemyHive.x + Math.floor(Math.random() * enemyHive.size);
+                const spawnY = enemyHive.y + enemyHive.size + Math.floor(Math.random() * 2);
+                if (game.units.filter(u => u.faction === CONFIG.ENEMY_FACTION && !u.isStructure).length < 10) {
+                    addUnit(spawnUnitType, CONFIG.ENEMY_FACTION, spawnX, spawnY);
+                    playSound('enemySpawn', 250, 0.1);
+                }
+            }
+        }
+
+
+        // --- Game End Conditions ---
+        function checkGameEndConditions() {
+            const playerNexusAlive = game.units.some(unit => unit.id === mainNexus.id && unit.hp > 0);
+            const enemyHiveAlive = game.units.some(unit => unit.id === enemyHive.id && unit.hp > 0);
+
+            if (!playerNexusAlive) {
+                endGame(false, "Your Nexus HQ has been destroyed!");
+            } else if (!enemyHiveAlive) {
+                endGame(true, "Enemy Hive destroyed! You Win!");
+            }
+        }
+
+        function endGame(isWin, message) {
+            game.gameRunning = false;
+            gameOverMessage.textContent = message;
+            gameOverOverlay.classList.add('visible');
+            if (isWin) {
+                playSound('win', [523, 659, 783, 1046], 1); // C major chord
+                gameOverMessage.style.color = '#28a745';
+            } else {
+                playSound('lose', [261, 220, 196], 1); // Descending notes
+                gameOverMessage.style.color = '#dc3545';
+            }
+        }
+
+        restartButton.addEventListener('click', () => {
+            gameOverOverlay.classList.remove('visible');
+            initGame();
+        });
+
+
+        // Initialize the game when the DOM is ready
+        document.addEventListener('DOMContentLoaded', initGame);
+
+    </script>
+</body>
+</html>
