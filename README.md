@@ -411,28 +411,3 @@ curl -X POST http://localhost:5000/api/generate-game \
 8. Game loads in iframe
 9. User plays the game!
 
-## 📝 License
-
-MIT License - feel free to modify and use!
-
-## 🤝 Support
-
-Having issues? Check:
-1. Backend logs: `cd backend && npm start`
-2. Frontend console: Browser DevTools
-3. Network tab: Check API calls
-4. Google Cloud Console: Verify quotas
-
-## 🎉 Next Steps
-
-- Add user authentication
-- Save generated games to database
-- Add game editing features
-- Export games as standalone HTML files
-- Add multiplayer support
-- Create game gallery/marketplace
-
----
-
-**Enjoy creating games with AI! 🎮🤖**
-"# Game_Development" 
